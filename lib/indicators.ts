@@ -1,7 +1,7 @@
 import { ATR, BollingerBands, EMA, MACD, RSI, SMA } from "technicalindicators";
 import { Candle, IndicatorSnapshot, QuantSummary, Timeframe, TimeframeAnalysis } from "@/types/analysis";
 
-function lastOrNull(arr: number[] | { [key: string]: number }[]): any {
+function lastOrNull<T>(arr: T[]): T | null {
   return arr.length ? arr[arr.length - 1] : null;
 }
 
