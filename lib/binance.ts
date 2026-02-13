@@ -1,6 +1,7 @@
 import { Candle, Timeframe } from "@/types/analysis";
 
-const BASE_URL = "https://api.binance.com";
+const PRIMARY_BASE_URL = "https://api.binance.com";
+const FALLBACK_BASE_URL = "https://api.binance.us";
 
 const timeframeToInterval: Record<Timeframe, string> = {
   "4h": "4h",
@@ -31,15 +32,24 @@ export function assertValidSymbol(symbol: string): void {
 export async function fetchKlines(symbol: string, timeframe: Timeframe): Promise<Candle[]> {
   const interval = timeframeToInterval[timeframe];
   const limit = timeframeToLimit[timeframe];
-  const url = `${BASE_URL}/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
+  const query = `/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
+  let raw: Array<[number, string, string, string, string, string]> | null = null;
+  let lastError = "";
 
-  const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) {
+  for (const baseUrl of [PRIMARY_BASE_URL, FALLBACK_BASE_URL]) {
+    const res = await fetch(`${baseUrl}${query}`, { cache: "no-store" });
+    if (res.ok) {
+      raw = (await res.json()) as Array<[number, string, string, string, string, string]>;
+      break;
+    }
+
     const text = await res.text();
-    throw new Error(`Binance error for ${timeframe}: ${text}`);
+    lastError = `${baseUrl}: ${text}`;
   }
 
-  const raw = (await res.json()) as Array<[number, string, string, string, string, string]>;
+  if (!raw) {
+    throw new Error(`Binance error for ${timeframe}: ${lastError}`);
+  }
 
   return raw.map((k) => ({
     openTime: k[0],
